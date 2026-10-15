@@ -23,17 +23,12 @@ const LOCAL_STORAGE_USER_KEY = 'kgec_user_profile';
 const LOCAL_STORAGE_BROADCAST_KEY = 'kgec_system_broadcast';
 
 // Offline cache getters & setters
+// Offline cache getters & setters
 export function getCachedNotices(): Notice[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_NOTICES_KEY);
     if (raw) {
-      const parsed: Notice[] = JSON.parse(raw);
-      const authenticOnly = parsed.filter(
-        (n) => n.sourceUrl?.includes('kgec.edu.in/notices') && !n.id.startsWith('kgec-exam-2026')
-      );
-      if (authenticOnly.length > 0) {
-        return authenticOnly;
-      }
+      return JSON.parse(raw);
     }
   } catch (e) {
     console.warn('Error reading local notice cache:', e);
@@ -43,10 +38,7 @@ export function getCachedNotices(): Notice[] {
 
 export function setCachedNotices(notices: Notice[]) {
   try {
-    const authentic = notices.filter(
-      (n) => !n.id.startsWith('kgec-exam-2026') && !n.id.startsWith('kgec-gen-2026')
-    );
-    localStorage.setItem(LOCAL_STORAGE_NOTICES_KEY, JSON.stringify(authentic));
+    localStorage.setItem(LOCAL_STORAGE_NOTICES_KEY, JSON.stringify(notices));
   } catch (e) {
     console.warn('Error setting local notice cache:', e);
   }

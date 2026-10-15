@@ -17,12 +17,14 @@ const config = {
 
 export const app = initializeApp(config);
 
-// Detect if using standard user Firebase project (which uses the standard '(default)' database)
-const isCustomProject = config.projectId === 'kgec-alert-system' || !config.firestoreDatabaseId || config.firestoreDatabaseId === '(default)';
+// Use the explicit database ID if provided and not '(default)'
+const dbId = config.firestoreDatabaseId && config.firestoreDatabaseId !== '(default)'
+  ? config.firestoreDatabaseId
+  : undefined;
 
-export const db = isCustomProject
-  ? getFirestore(app)
-  : getFirestore(app, config.firestoreDatabaseId);
+console.log('Initializing Firestore with DB ID:', dbId || '(default)');
+
+export const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
 
 export const auth = getAuth(app);
 
