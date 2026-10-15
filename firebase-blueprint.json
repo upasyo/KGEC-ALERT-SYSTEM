@@ -1,0 +1,171 @@
+{
+  "entities": {
+    "Notice": {
+      "title": "Notice",
+      "description": "KGEC official alert or circular notice",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 300,
+          "description": "Title of the circular or notice"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["general", "academic", "examination", "admission"],
+          "description": "Category of the notice"
+        },
+        "refNumber": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Official memorandum or reference number"
+        },
+        "department": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Target department or All"
+        },
+        "publishDate": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Official date of publication"
+        },
+        "deadlineDate": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Optional deadline or last submission date"
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "Detailed text or excerpt of the alert"
+        },
+        "attachmentUrl": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Link to official document or PDF"
+        },
+        "isUrgent": {
+          "type": "boolean",
+          "description": "Whether this alert is highlighted as urgent"
+        },
+        "sourceUrl": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Original source URL from kgec.edu.in"
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Update timestamp"
+        }
+      },
+      "required": ["title", "category", "refNumber", "publishDate", "content"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Registered KGEC student or faculty profile tied to mobile number",
+      "type": "object",
+      "properties": {
+        "phoneNumber": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "E.164 or 10-digit mobile phone number"
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Student or member full name"
+        },
+        "department": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Department such as CSE, ECE, IT, ME, EE, MCA"
+        },
+        "year": {
+          "type": "string",
+          "maxLength": 20,
+          "description": "Academic year or semester"
+        },
+        "rollNumber": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "College Roll Number or University Registration"
+        },
+        "savedNoticeIds": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Comma-separated list or JSON of saved notice IDs for offline access"
+        },
+        "readHistory": {
+          "type": "string",
+          "maxLength": 5000,
+          "description": "Comma-separated list of viewed notice IDs"
+        },
+        "preferences": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Notification category preferences JSON"
+        },
+        "updatedAt": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Profile last update timestamp"
+        }
+      },
+      "required": ["phoneNumber", "fullName"]
+    },
+    "SystemBroadcast": {
+      "title": "SystemBroadcast",
+      "description": "Campus-wide emergency or live ticker alert broadcasted by Admin",
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "maxLength": 400,
+          "description": "Ticker message text"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether broadcast ticker is active"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "critical"],
+          "description": "Severity level"
+        },
+        "updatedAt": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Last updated timestamp"
+        }
+      },
+      "required": ["message", "isActive"]
+    }
+  },
+  "firestore": {
+    "/notices/{noticeId}": {
+      "schema": {
+        "$ref": "#/entities/Notice"
+      },
+      "description": "Official KGEC notices synchronized and stored for all students and faculty"
+    },
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profiles indexed by UID or verified phone identifier"
+    },
+    "/broadcasts/{broadcastId}": {
+      "schema": {
+        "$ref": "#/entities/SystemBroadcast"
+      },
+      "description": "Campus emergency broadcasts and live tickers managed via CMS Admin"
+    }
+  }
+}

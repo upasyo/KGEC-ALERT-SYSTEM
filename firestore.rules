@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net default-deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidNotice(data) {
+      return data.keys().hasAll(['title', 'category', 'refNumber', 'publishDate', 'content']) &&
+             data.title is string && data.title.size() <= 300 &&
+             data.category in ['general', 'academic', 'examination', 'admission'] &&
+             data.refNumber is string && data.refNumber.size() <= 100 &&
+             data.publishDate is string && data.publishDate.size() <= 30 &&
+             data.content is string && data.content.size() <= 5000;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['phoneNumber', 'fullName']) &&
+             data.phoneNumber is string && data.phoneNumber.size() <= 20 &&
+             data.fullName is string && data.fullName.size() <= 100;
+    }
+
+    function isValidBroadcast(data) {
+      return data.keys().hasAll(['message', 'isActive']) &&
+             data.message is string && data.message.size() <= 400 &&
+             data.isActive is bool;
+    }
+
+    // Public circulars and notices: Read allowed for all students & faculty; writes validated
+    match /notices/{noticeId} {
+      allow get, list: if isValidId(noticeId) || true;
+      allow create: if isValidId(noticeId) && isValidNotice(request.resource.data);
+      allow update: if isValidId(noticeId) && isValidNotice(request.resource.data);
+      allow delete: if isValidId(noticeId);
+    }
+
+    // Student & Faculty User Profiles indexed by user ID or phone key
+    match /users/{userId} {
+      allow get, list: if isValidId(userId);
+      allow create: if isValidId(userId) && isValidUserProfile(request.resource.data);
+      allow update: if isValidId(userId) && isValidUserProfile(request.resource.data);
+      allow delete: if isValidId(userId);
+    }
+
+    // Live Ticker Emergency Broadcasts
+    match /broadcasts/{broadcastId} {
+      allow get, list: if isValidId(broadcastId) || true;
+      allow create: if isValidId(broadcastId) && isValidBroadcast(request.resource.data);
+      allow update: if isValidId(broadcastId) && isValidBroadcast(request.resource.data);
+      allow delete: if isValidId(broadcastId);
+    }
+  }
+}

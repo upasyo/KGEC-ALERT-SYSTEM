@@ -1,0 +1,6 @@
+{
+  "name": "KGEC General Alert System",
+  "description": "Official notice tracking and alert platform for Kalyani Government Engineering College (KGEC), created by Upasyo Kushari. Features real-time multi-category notices, deadline calendar, mobile auth, CMS admin portal, and offline alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
