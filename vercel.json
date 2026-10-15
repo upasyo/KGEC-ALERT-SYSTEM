@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/kgec/:path*",
+      "destination": "https://www.kgec.edu.in/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

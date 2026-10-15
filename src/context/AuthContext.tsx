@@ -3,6 +3,7 @@ import { UserProfile } from '../types';
 import {
   saveUserProfileToFirestore,
   getUserProfileFromFirestore,
+  subscribeToUserProfile,
   getOfflineSavedIds,
   setOfflineSavedIds,
 } from '../services/firestoreService';
@@ -43,26 +44,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
-  // Sync profile from Firestore on mount if user is remembered
+  // Real-time listener for profile changes from Firestore
   useEffect(() => {
     if (user?.phoneNumber) {
-      getUserProfileFromFirestore(user.phoneNumber).then((remoteProfile) => {
-        if (remoteProfile) {
-          setUser((prev) => {
-            // Merge local saved and remote saved to avoid losing offline saves
-            const mergedSaved = Array.from(new Set([...(prev?.savedNoticeIds || []), ...remoteProfile.savedNoticeIds]));
-            const mergedHistory = Array.from(new Set([...(prev?.readHistory || []), ...remoteProfile.readHistory]));
-            const updated = {
-              ...remoteProfile,
-              savedNoticeIds: mergedSaved,
-              readHistory: mergedHistory,
-            };
-            localStorage.setItem('kgec_user_profile', JSON.stringify(updated));
-            setOfflineSavedIds(mergedSaved);
-            return updated;
-          });
-        }
+      const unsubscribe = subscribeToUserProfile(user.phoneNumber, (remoteProfile) => {
+        setUser((prev) => {
+          const mergedSaved = Array.from(new Set([...(prev?.savedNoticeIds || []), ...remoteProfile.savedNoticeIds]));
+          const mergedHistory = Array.from(new Set([...(prev?.readHistory || []), ...remoteProfile.readHistory]));
+          const updated = {
+            ...remoteProfile,
+            savedNoticeIds: mergedSaved,
+            readHistory: mergedHistory,
+          };
+          localStorage.setItem('kgec_user_profile', JSON.stringify(updated));
+          setOfflineSavedIds(mergedSaved);
+          return updated;
+        });
       });
+      return () => unsubscribe();
     }
   }, [user?.phoneNumber]);
 

@@ -15,8 +15,15 @@ const config = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || (defaultFirebaseConfig as any).measurementId || 'G-8KGGXCR4HH',
 };
 
-const app = initializeApp(config);
-export const db = getFirestore(app, config.firestoreDatabaseId);
+export const app = initializeApp(config);
+
+// Detect if using standard user Firebase project (which uses the standard '(default)' database)
+const isCustomProject = config.projectId === 'kgec-alert-system' || !config.firestoreDatabaseId || config.firestoreDatabaseId === '(default)';
+
+export const db = isCustomProject
+  ? getFirestore(app)
+  : getFirestore(app, config.firestoreDatabaseId);
+
 export const auth = getAuth(app);
 
 export enum OperationType {
@@ -62,7 +69,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  console.warn('Firestore Warning: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
 
@@ -71,9 +78,7 @@ export async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase client is running in offline mode. Local persistence will be used.');
-    }
+    console.warn('Firebase database initial check note:', error instanceof Error ? error.message : error);
   }
 }
 testConnection();

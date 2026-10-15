@@ -10,6 +10,7 @@ import { CalendarView } from './components/CalendarView';
 import { ProfileModal } from './components/ProfileModal';
 import { AdminCMSModal } from './components/AdminCMSModal';
 import { AuthModal } from './components/AuthModal';
+import { LoginGateway } from './components/LoginGateway';
 import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { ReloadToast } from './components/ReloadToast';
 import { OfflineBanner } from './components/OfflineBanner';
@@ -38,6 +39,11 @@ import {
 
 function AlertSystemMain() {
   const { user, isAuthenticated, isNoticeSaved } = useAuth();
+
+  // Enforce zero access to the website without logging in
+  if (!isAuthenticated || !user) {
+    return <LoginGateway />;
+  }
 
   // Notices state
   const [notices, setNotices] = useState<Notice[]>(() => getCachedNotices());

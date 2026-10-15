@@ -28,7 +28,6 @@ export function getCachedNotices(): Notice[] {
     const raw = localStorage.getItem(LOCAL_STORAGE_NOTICES_KEY);
     if (raw) {
       const parsed: Notice[] = JSON.parse(raw);
-      // Filter out any previous placeholder or simulated items to guarantee 100% authenticity
       const authenticOnly = parsed.filter(
         (n) => n.sourceUrl?.includes('kgec.edu.in/notices') && !n.id.startsWith('kgec-exam-2026')
       );
@@ -44,7 +43,6 @@ export function getCachedNotices(): Notice[] {
 
 export function setCachedNotices(notices: Notice[]) {
   try {
-    // Only cache genuine notices
     const authentic = notices.filter(
       (n) => !n.id.startsWith('kgec-exam-2026') && !n.id.startsWith('kgec-gen-2026')
     );
@@ -78,12 +76,10 @@ export function setOfflineSavedIds(ids: string[]) {
 export async function seedNoticesIfEmpty() {
   try {
     const snap = await getDocs(collection(db, NOTICES_COLLECTION));
-    // If empty or contains old placeholders, synchronize authentic records
     const existingIds = snap.docs.map((d) => d.id);
     const hasOldData = existingIds.some((id) => id.startsWith('kgec-exam-2026') || id.startsWith('kgec-gen-2026'));
 
     if (snap.empty || hasOldData) {
-      // Clean up old placeholders if any
       if (hasOldData) {
         for (const docSnap of snap.docs) {
           if (docSnap.id.startsWith('kgec-exam-2026') || docSnap.id.startsWith('kgec-gen-2026')) {
@@ -118,7 +114,6 @@ export async function seedNoticesIfEmpty() {
  * Subscribes to real-time notices from Firestore with local fallback
  */
 export function subscribeToNotices(callback: (notices: Notice[]) => void): () => void {
-  // First emit cached or initial notices immediately so user has zero wait time
   const initialCache = getCachedNotices();
   if (initialCache.length > 0) {
     callback(initialCache);
@@ -130,7 +125,6 @@ export function subscribeToNotices(callback: (notices: Notice[]) => void): () =>
     q,
     (snapshot) => {
       if (snapshot.empty) {
-        // If empty on remote, attempt seed or emit initial
         seedNoticesIfEmpty();
         callback(INITIAL_KGEC_NOTICES);
         return;
@@ -162,9 +156,12 @@ export function subscribeToNotices(callback: (notices: Notice[]) => void): () =>
     },
     (error) => {
       console.warn('Firestore onSnapshot notices notice/offline fallback:', error.message);
-      // Fallback to local cache gracefully
       callback(getCachedNotices());
-      handleFirestoreError(error, OperationType.GET, NOTICES_COLLECTION);
+      try {
+        handleFirestoreError(error, OperationType.GET, NOTICES_COLLECTION);
+      } catch (e) {
+        console.warn('Firestore offline notice cache active:', e);
+      }
     }
   );
 
@@ -234,7 +231,6 @@ export async function deleteNoticeFromFirestore(id: string): Promise<void> {
  * Saves/updates a user's details and history indexed by mobile number
  */
 export async function saveUserProfileToFirestore(profile: UserProfile): Promise<void> {
-  // Save locally first for instant offline readiness
   try {
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(profile));
   } catch {}
@@ -259,7 +255,7 @@ export async function saveUserProfileToFirestore(profile: UserProfile): Promise<
       { merge: true }
     );
   } catch (error) {
-    console.warn('Profile sync to Firestore deferred (offline or permission):', error);
+    console.warn('Profile sync to Firestore deferred:', error);
   }
 }
 
@@ -310,6 +306,58 @@ export async function getUserProfileFromFirestore(phone: string): Promise<UserPr
     console.warn('Error fetching profile from Firestore:', err);
   }
   return null;
+}
+
+/**
+ * Real-time listener for user profile updates from Firestore
+ */
+export function subscribeToUserProfile(phone: string, callback: (profile: UserProfile) => void): () => void {
+  const sanitizedPhone = phone.replace(/[^0-9]/g, '');
+  if (!sanitizedPhone) return () => {};
+
+  const userDocRef = doc(db, USERS_COLLECTION, sanitizedPhone);
+  const unsubscribe = onSnapshot(userDocRef, (snap) => {
+    if (snap.exists()) {
+      const data = snap.data();
+      let savedIds: string[] = [];
+      let readHistory: string[] = [];
+      let preferences = {
+        general: true,
+        academic: true,
+        examination: true,
+        admission: true,
+        pushAlerts: true,
+        soundChime: true,
+      };
+
+      try {
+        if (data.savedNoticeIds) savedIds = JSON.parse(data.savedNoticeIds);
+        if (data.readHistory) readHistory = JSON.parse(data.readHistory);
+        if (data.preferences) preferences = { ...preferences, ...JSON.parse(data.preferences) };
+      } catch {}
+
+      const updatedProfile: UserProfile = {
+        uid: sanitizedPhone,
+        phoneNumber: data.phoneNumber || phone,
+        fullName: data.fullName || 'KGEC Student',
+        department: data.department || 'CSE',
+        year: data.year || '3rd Year',
+        rollNumber: data.rollNumber || '',
+        savedNoticeIds: savedIds,
+        readHistory: readHistory,
+        preferences: preferences,
+        lastLoginAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: data.updatedAt || new Date().toISOString(),
+      };
+
+      callback(updatedProfile);
+    }
+  }, (err) => {
+    console.warn('User profile realtime sync note:', err);
+  });
+
+  return unsubscribe;
 }
 
 /**
