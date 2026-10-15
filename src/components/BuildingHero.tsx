@@ -40,17 +40,23 @@ export const BuildingHero: React.FC<BuildingHeroProps> = ({
       {/* Live Campus Emergency Broadcast Marquee / Alert Ticker */}
       {broadcast && broadcast.isActive && (
         <div
-          className={`px-4 py-2 text-xs font-medium flex items-center gap-2 border-b transition-colors ${
+          className={`mb-4 px-4 py-3 text-xs sm:text-sm font-bold flex items-center gap-3 rounded-2xl shadow-lg border transition-colors overflow-hidden ${
             broadcast.severity === 'critical'
-              ? 'bg-rose-500 text-white border-rose-600'
+              ? 'bg-rose-600 text-white border-rose-700 animate-pulse'
               : broadcast.severity === 'warning'
-              ? 'bg-amber-500 text-stone-900 border-amber-600'
-              : 'bg-emerald-600 text-white border-emerald-700'
+              ? 'bg-amber-500 text-stone-950 border-amber-600'
+              : 'bg-emerald-700 text-white border-emerald-800'
           }`}
         >
-          <Radio className="w-4 h-4 shrink-0 animate-ping" />
-          <strong className="uppercase tracking-wider shrink-0 font-bold">CAMPUS NOTICE TICKER:</strong>
-          <span className="truncate flex-1">{broadcast.message}</span>
+          <div className="flex items-center gap-2 shrink-0 bg-black/20 px-2.5 py-1 rounded-xl">
+            <Radio className="w-4 h-4 shrink-0 animate-ping" />
+            <span className="uppercase tracking-wider font-extrabold text-[11px]">LIVE BROADCAST:</span>
+          </div>
+          <div className="flex-1 overflow-hidden whitespace-nowrap relative">
+            <div className="inline-block animate-marquee font-medium">
+              {broadcast.message} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; • &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {broadcast.message}
+            </div>
+          </div>
         </div>
       )}
 

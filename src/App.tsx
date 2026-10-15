@@ -41,11 +41,6 @@ import {
 function AlertSystemMain() {
   const { user, isAuthenticated, isNoticeSaved } = useAuth();
 
-  // Enforce zero access to the website without logging in
-  if (!isAuthenticated || !user) {
-    return <LoginGateway />;
-  }
-
   // Notices state
   const [notices, setNotices] = useState<Notice[]>(() => getCachedNotices());
   const [broadcast, setBroadcast] = useState<SystemBroadcast | null>(null);
@@ -93,6 +88,11 @@ function AlertSystemMain() {
       unsubscribeBroadcast();
     };
   }, []);
+
+  // Enforce zero access to the website without logging in (after all hooks are called)
+  if (!isAuthenticated || !user) {
+    return <LoginGateway />;
+  }
 
   // Automated trigger fetch from kgec.edu.in
   const handleSyncNotices = async (): Promise<{ added: number; duplicates: number }> => {
