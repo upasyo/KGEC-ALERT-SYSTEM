@@ -193,64 +193,64 @@ export const LoginGateway: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-900 text-stone-100 flex flex-col justify-between relative overflow-hidden">
-      {/* Background Architectural Canvas */}
+    <div className="min-h-screen bg-stone-100 text-stone-900 flex flex-col justify-between relative overflow-hidden">
+      {/* Background Architectural Canvas - Crisp & Visible Light Theme */}
       <div className="absolute inset-0 z-0">
         <img
           src={buildingImage}
           alt="Meghnad Saha Bhawan, KGEC"
-          className="w-full h-full object-cover opacity-25 filter blur-[1px] scale-105"
+          className="w-full h-full object-cover opacity-35 filter contrast-105 scale-105"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/80 to-stone-900/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-white/70 to-white/90" />
       </div>
 
       {/* Top Header Bar */}
-      <header className="relative z-10 p-4 sm:p-6 border-b border-stone-800/80 flex items-center justify-between max-w-7xl mx-auto w-full">
+      <header className="relative z-10 p-4 sm:p-6 border-b border-stone-200/80 bg-white/80 backdrop-blur-md flex items-center justify-between max-w-7xl mx-auto w-full shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg shadow-md tracking-tighter">
+          <div className="w-10 h-10 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold text-lg shadow-md tracking-tighter">
             KG
           </div>
           <div>
-            <h1 className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-2">
+            <h1 className="font-extrabold text-sm sm:text-base tracking-tight text-stone-900 flex items-center gap-2">
               KGEC GENERAL ALERT SYSTEM
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
                 Access Gateway
               </span>
             </h1>
-            <p className="text-[11px] text-stone-400">Kalyani Government Engineering College</p>
+            <p className="text-[11px] text-stone-600">Kalyani Government Engineering College</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-stone-800/80 border border-stone-700 text-xs">
-            <span className="text-stone-400">Created by</span>
-            <strong className="text-emerald-300 font-bold">UPASYO KUSHARI</strong>
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-stone-100 border border-stone-300 text-xs shadow-2xs">
+            <span className="text-stone-500">Created by</span>
+            <strong className="text-emerald-700 font-bold">UPASYO KUSHARI</strong>
           </div>
 
           <button
             onClick={toggleDarkMode}
-            className="p-2 rounded-xl bg-stone-800/80 hover:bg-stone-800 text-stone-300 transition-colors border border-stone-700"
+            className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 transition-colors border border-stone-300 shadow-2xs"
             title="Toggle Night/Day Mode"
           >
-            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+            {isDarkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-stone-700" />}
           </button>
         </div>
       </header>
 
-      {/* Center Authentication Gateway Card */}
+      {/* Center Authentication Gateway Card - Light Glassmorphism */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-6 my-4">
-        <div className="max-w-md w-full bg-stone-900/90 backdrop-blur-md rounded-3xl border border-stone-800 shadow-2xl overflow-hidden p-6 sm:p-8">
+        <div className="max-w-md w-full bg-white/95 backdrop-blur-xl rounded-3xl border border-stone-200 shadow-2xl overflow-hidden p-6 sm:p-8">
           <div id="gateway-recaptcha-container"></div>
 
           {/* Institutional Badge */}
           <div className="text-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3 shadow-inner">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 text-emerald-700 border border-emerald-300 flex items-center justify-center mx-auto mb-3 shadow-sm">
               <Lock className="w-7 h-7" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-1">
+            <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight mb-1">
               Portal Access Restricted
             </h2>
-            <p className="text-xs text-stone-400 leading-relaxed max-w-xs mx-auto">
+            <p className="text-xs text-stone-600 leading-relaxed max-w-xs mx-auto">
               Login or register with your mobile number to access official circulars, exam schedules, and alert
               synchronization.
             </p>
@@ -258,22 +258,22 @@ export const LoginGateway: React.FC = () => {
 
           {/* Feedback Messages */}
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-950/70 border border-rose-800 text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {infoMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-emerald-950/70 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
-              <Sparkles className="w-4 h-4 shrink-0" />
+            <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs flex items-center gap-2">
+              <Sparkles className="w-4 h-4 shrink-0 text-emerald-600" />
               <span>{infoMsg}</span>
             </div>
           )}
 
           {syncStatus && (
-            <div className="mb-4 p-3 rounded-xl bg-blue-950/70 border border-blue-800 text-blue-300 text-xs flex items-center gap-2 animate-pulse">
-              <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />
+            <div className="mb-4 p-3 rounded-xl bg-blue-50 border border-blue-300 text-blue-800 text-xs flex items-center gap-2 animate-pulse">
+              <RefreshCw className="w-4 h-4 shrink-0 animate-spin text-blue-600" />
               <span>{syncStatus}</span>
             </div>
           )}
@@ -282,11 +282,11 @@ export const LoginGateway: React.FC = () => {
           {step === 'phone' && (
             <form onSubmit={handleSendOtp} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+                <label className="block text-xs font-semibold text-stone-700 mb-1.5">
                   Enter 10-Digit Mobile Number
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-3.5 text-xs font-bold text-stone-400 font-mono">+91</span>
+                  <span className="absolute left-3.5 text-xs font-bold text-stone-500 font-mono">+91</span>
                   <input
                     type="tel"
                     required
@@ -295,7 +295,7 @@ export const LoginGateway: React.FC = () => {
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="98765 43210"
-                    className="w-full pl-12 pr-4 py-3 text-sm rounded-xl bg-stone-800/80 border border-stone-700 text-white font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition-all"
+                    className="w-full pl-12 pr-4 py-3 text-sm rounded-xl bg-stone-50 border border-stone-300 text-stone-900 font-mono tracking-wider focus:outline-hidden focus:ring-2 focus:ring-emerald-600 transition-all shadow-2xs"
                   />
                 </div>
               </div>
@@ -303,7 +303,7 @@ export const LoginGateway: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white text-xs font-extrabold uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all"
+                className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-98 text-white text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
                 <span>{isLoading ? 'Requesting OTP...' : 'Continue with Mobile Number'}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -318,27 +318,27 @@ export const LoginGateway: React.FC = () => {
           {/* STEP 2: OTP VERIFICATION */}
           {step === 'otp' && (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-800/60 text-xs text-emerald-200">
+              <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-xs text-emerald-900">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-semibold flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
                     <span>Verifying +91 {phoneNumber.slice(-10)}</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => setStep('phone')}
-                    className="text-[11px] text-stone-400 hover:text-white underline"
+                    className="text-[11px] text-stone-600 hover:text-stone-900 underline"
                   >
                     Change
                   </button>
                 </div>
                 {generatedOtp && (
-                  <div className="flex items-center justify-between pt-1 border-t border-emerald-900/60 mt-1">
-                    <span className="text-stone-300 text-[11px]">Preview code:</span>
+                  <div className="flex items-center justify-between pt-1 border-t border-emerald-200 mt-1">
+                    <span className="text-stone-700 text-[11px]">Preview code:</span>
                     <button
                       type="button"
                       onClick={() => setOtpCode(generatedOtp)}
-                      className="font-mono text-emerald-400 font-bold hover:underline"
+                      className="font-mono text-emerald-700 font-bold hover:underline"
                     >
                       {generatedOtp} (Click to auto-fill)
                     </button>
@@ -347,7 +347,7 @@ export const LoginGateway: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1.5">
+                <label className="block text-xs font-semibold text-stone-700 mb-1.5">
                   Enter 6-Digit OTP Code
                 </label>
                 <input
@@ -358,7 +358,7 @@ export const LoginGateway: React.FC = () => {
                   value={otpCode}
                   onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
                   placeholder="••••••"
-                  className="w-full px-4 py-3 text-center text-lg font-mono tracking-widest rounded-xl bg-stone-800/80 border border-stone-700 text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-3 text-center text-lg font-mono tracking-widest rounded-xl bg-stone-50 border border-stone-300 text-stone-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-600 shadow-2xs"
                 />
               </div>
 
@@ -366,14 +366,14 @@ export const LoginGateway: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setStep('phone')}
-                  className="w-1/3 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-semibold"
+                  className="w-1/3 py-2.5 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-semibold transition-colors"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-2/3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold uppercase tracking-wider shadow-lg flex items-center justify-center gap-1.5"
+                  className="w-2/3 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5"
                 >
                   <span>{isLoading ? 'Verifying...' : 'Verify & Unlock'}</span>
                   <CheckCircle2 className="w-4 h-4" />
@@ -385,18 +385,18 @@ export const LoginGateway: React.FC = () => {
           {/* STEP 3: REGISTRATION (AUTOMATICALLY STORES TO FIRESTORE) */}
           {step === 'register' && (
             <form onSubmit={handleCompleteRegistration} className="space-y-4">
-              <div className="p-3 rounded-2xl bg-stone-800/60 border border-stone-700 text-xs text-stone-300">
-                <div className="flex items-center gap-1.5 font-bold text-white mb-0.5">
-                  <GraduationCap className="w-4 h-4 text-emerald-400" />
+              <div className="p-3 rounded-2xl bg-stone-50 border border-stone-300 text-xs text-stone-700">
+                <div className="flex items-center gap-1.5 font-bold text-stone-900 mb-0.5">
+                  <GraduationCap className="w-4 h-4 text-emerald-700" />
                   <span>Student & Faculty Profile Setup</span>
                 </div>
-                <p className="text-[11px] text-stone-400">
+                <p className="text-[11px] text-stone-600">
                   Completing this step will automatically store your profile and alert preferences into Firestore.
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
                   Full Name *
                 </label>
                 <input
@@ -406,18 +406,18 @@ export const LoginGateway: React.FC = () => {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="e.g. Sourav Mukherjee"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-stone-800 border border-stone-700 text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-stone-50 border border-stone-300 text-stone-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-600 shadow-2xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
                   Department *
                 </label>
                 <select
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-stone-800 border border-stone-700 text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-stone-50 border border-stone-300 text-stone-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-600 shadow-2xs"
                 >
                   {DEPARTMENTS.map((dept) => (
                     <option key={dept} value={dept}>
@@ -428,13 +428,13 @@ export const LoginGateway: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
                   Academic Year / Designation *
                 </label>
                 <select
                   value={year}
                   onChange={(e) => setYear(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-stone-800 border border-stone-700 text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-stone-50 border border-stone-300 text-stone-900 focus:outline-hidden focus:ring-2 focus:ring-emerald-600 shadow-2xs"
                 >
                   {YEARS.map((y) => (
                     <option key={y} value={y}>
@@ -445,7 +445,7 @@ export const LoginGateway: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-stone-300 mb-1">
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
                   College Roll No / Registration No (Optional)
                 </label>
                 <input
@@ -453,14 +453,14 @@ export const LoginGateway: React.FC = () => {
                   value={rollNumber}
                   onChange={(e) => setRollNumber(e.target.value)}
                   placeholder="e.g. 10200122045"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-stone-800 border border-stone-700 text-white font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl bg-stone-50 border border-stone-300 text-stone-900 font-mono focus:outline-hidden focus:ring-2 focus:ring-emerald-600 shadow-2xs"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all"
+                className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
               >
                 <span>{isLoading ? 'Saving to Firestore...' : 'Complete Registration & Access Portal'}</span>
                 <ArrowRight className="w-4 h-4" />
@@ -471,9 +471,9 @@ export const LoginGateway: React.FC = () => {
       </main>
 
       {/* Footer Attribution */}
-      <footer className="relative z-10 p-4 text-center text-xs text-stone-500 border-t border-stone-800/60 max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-2">
+      <footer className="relative z-10 p-4 text-center text-xs text-stone-600 border-t border-stone-200/80 bg-white/80 backdrop-blur-md max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-2 shadow-xs">
         <span>Kalyani Government Engineering College • Official Alert System</span>
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-[11px]">
+        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-800 text-[11px]">
           <span>WEB APP IS CREATED BY</span>
           <strong className="font-extrabold tracking-wide">UPASYO KUSHARI</strong>
         </div>
