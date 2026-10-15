@@ -12,6 +12,7 @@ import { AdminCMSModal } from './components/AdminCMSModal';
 import { AuthModal } from './components/AuthModal';
 import { LoginGateway } from './components/LoginGateway';
 import { NotificationCenterModal } from './components/NotificationCenterModal';
+import { GeminiChatAssistant } from './components/GeminiChatAssistant';
 import { ReloadToast } from './components/ReloadToast';
 import { OfflineBanner } from './components/OfflineBanner';
 import { Notice, SystemBroadcast } from './types';
@@ -408,6 +409,9 @@ function AlertSystemMain() {
 
       {/* Mobile Login / Firebase Auth Modal */}
       <AuthModal />
+
+      {/* Gemini AI Notice Chat Assistant */}
+      <GeminiChatAssistant notices={notices} />
     </div>
   );
 }
