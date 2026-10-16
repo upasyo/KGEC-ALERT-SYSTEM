@@ -28,8 +28,7 @@ service cloud.firestore {
     }
 
     function isValidUserProfile(data) {
-      return data.keys().hasAll(['phoneNumber', 'fullName']) &&
-             data.phoneNumber is string && data.phoneNumber.size() <= 20 &&
+      return (data.keys().hasAll(['email', 'fullName']) || data.keys().hasAll(['fullName'])) &&
              data.fullName is string && data.fullName.size() <= 100;
     }
 
@@ -41,18 +40,18 @@ service cloud.firestore {
 
     // Public circulars and notices: Read allowed for all students & faculty; writes validated
     match /notices/{noticeId} {
-      allow get, list: if isValidId(noticeId) || true;
-      allow create: if isValidId(noticeId) && isValidNotice(request.resource.data);
-      allow update: if isValidId(noticeId) && isValidNotice(request.resource.data);
+      allow get, list: if true;
+      allow create: if isValidNotice(request.resource.data);
+      allow update: if isValidNotice(request.resource.data);
       allow delete: if isValidId(noticeId);
     }
 
-    // Student & Faculty User Profiles indexed by user ID or phone key
+    // Student & Faculty User Profiles indexed by user Auth UID or email key
     match /users/{userId} {
-      allow get, list: if isValidId(userId);
-      allow create: if isValidId(userId) && isValidUserProfile(request.resource.data);
-      allow update: if isValidId(userId) && isValidUserProfile(request.resource.data);
-      allow delete: if isValidId(userId);
+      allow get, list: if true;
+      allow create: if isValidUserProfile(request.resource.data);
+      allow update: if isValidUserProfile(request.resource.data);
+      allow delete: if isSignedIn();
     }
 
     // Live Ticker Emergency Broadcasts

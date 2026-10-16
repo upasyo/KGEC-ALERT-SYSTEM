@@ -9,7 +9,6 @@ import { NoticeDetailModal } from './components/NoticeDetailModal';
 import { CalendarView } from './components/CalendarView';
 import { ProfileModal } from './components/ProfileModal';
 import { AdminCMSModal } from './components/AdminCMSModal';
-import { AuthModal } from './components/AuthModal';
 import { LoginGateway } from './components/LoginGateway';
 import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { GeminiChatAssistant } from './components/GeminiChatAssistant';
@@ -406,9 +405,6 @@ function AlertSystemMain() {
         notices={notices}
         onOpenNotice={(n) => setSelectedNotice(n)}
       />
-
-      {/* Mobile Login / Firebase Auth Modal */}
-      <AuthModal />
 
       {/* Gemini AI Notice Chat Assistant */}
       <GeminiChatAssistant notices={notices} />

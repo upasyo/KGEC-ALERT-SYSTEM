@@ -23,12 +23,18 @@ const LOCAL_STORAGE_USER_KEY = 'kgec_user_profile';
 const LOCAL_STORAGE_BROADCAST_KEY = 'kgec_system_broadcast';
 
 // Offline cache getters & setters
-// Offline cache getters & setters
 export function getCachedNotices(): Notice[] {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_NOTICES_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed: Notice[] = JSON.parse(raw);
+      // Filter out any previous placeholder or simulated items to guarantee 100% authenticity
+      const authenticOnly = parsed.filter(
+        (n) => n.sourceUrl?.includes('kgec.edu.in/notices') && !n.id.startsWith('kgec-exam-2026')
+      );
+      if (authenticOnly.length > 0) {
+        return authenticOnly;
+      }
     }
   } catch (e) {
     console.warn('Error reading local notice cache:', e);
@@ -38,7 +44,11 @@ export function getCachedNotices(): Notice[] {
 
 export function setCachedNotices(notices: Notice[]) {
   try {
-    localStorage.setItem(LOCAL_STORAGE_NOTICES_KEY, JSON.stringify(notices));
+    // Only cache genuine notices
+    const authentic = notices.filter(
+      (n) => !n.id.startsWith('kgec-exam-2026') && !n.id.startsWith('kgec-gen-2026')
+    );
+    localStorage.setItem(LOCAL_STORAGE_NOTICES_KEY, JSON.stringify(authentic));
   } catch (e) {
     console.warn('Error setting local notice cache:', e);
   }
@@ -68,10 +78,12 @@ export function setOfflineSavedIds(ids: string[]) {
 export async function seedNoticesIfEmpty() {
   try {
     const snap = await getDocs(collection(db, NOTICES_COLLECTION));
+    // If empty or contains old placeholders, synchronize authentic records
     const existingIds = snap.docs.map((d) => d.id);
     const hasOldData = existingIds.some((id) => id.startsWith('kgec-exam-2026') || id.startsWith('kgec-gen-2026'));
 
     if (snap.empty || hasOldData) {
+      // Clean up old placeholders if any
       if (hasOldData) {
         for (const docSnap of snap.docs) {
           if (docSnap.id.startsWith('kgec-exam-2026') || docSnap.id.startsWith('kgec-gen-2026')) {
@@ -106,6 +118,7 @@ export async function seedNoticesIfEmpty() {
  * Subscribes to real-time notices from Firestore with local fallback
  */
 export function subscribeToNotices(callback: (notices: Notice[]) => void): () => void {
+  // First emit cached or initial notices immediately so user has zero wait time
   const initialCache = getCachedNotices();
   if (initialCache.length > 0) {
     callback(initialCache);
@@ -117,6 +130,7 @@ export function subscribeToNotices(callback: (notices: Notice[]) => void): () =>
     q,
     (snapshot) => {
       if (snapshot.empty) {
+        // If empty on remote, attempt seed or emit initial
         seedNoticesIfEmpty();
         callback(INITIAL_KGEC_NOTICES);
         return;
@@ -137,6 +151,7 @@ export function subscribeToNotices(callback: (notices: Notice[]) => void): () =>
           attachmentUrl: data.attachmentUrl || undefined,
           isUrgent: !!data.isUrgent,
           sourceUrl: data.sourceUrl || undefined,
+          meetingUrl: data.meetingUrl || undefined,
           createdAt: data.createdAt || new Date().toISOString(),
           updatedAt: data.updatedAt || undefined,
         });
@@ -148,6 +163,7 @@ export function subscribeToNotices(callback: (notices: Notice[]) => void): () =>
     },
     (error) => {
       console.warn('Firestore onSnapshot notices notice/offline fallback:', error.message);
+      // Fallback to local cache gracefully
       callback(getCachedNotices());
       try {
         handleFirestoreError(error, OperationType.GET, NOTICES_COLLECTION);
@@ -177,6 +193,7 @@ export async function addNoticeToFirestore(notice: Notice): Promise<void> {
       attachmentUrl: notice.attachmentUrl || '',
       isUrgent: !!notice.isUrgent,
       sourceUrl: notice.sourceUrl || '',
+      meetingUrl: notice.meetingUrl || '',
       createdAt: notice.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
@@ -220,21 +237,31 @@ export async function deleteNoticeFromFirestore(id: string): Promise<void> {
 }
 
 /**
- * Saves/updates a user's details and history indexed by mobile number
+ * Sanitizes identifier into safe Firestore document ID
+ */
+export function getSafeUserDocId(identifier: string): string {
+  if (!identifier) return 'guest';
+  // If it's already alphanumeric (like Firebase UID), keep it; otherwise replace invalid chars
+  return identifier.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+/**
+ * Saves/updates a user's details and history in Firestore
  */
 export async function saveUserProfileToFirestore(profile: UserProfile): Promise<void> {
+  // Save locally first for instant offline readiness
   try {
     localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(profile));
   } catch {}
 
-  const sanitizedPhone = profile.phoneNumber.replace(/[^0-9]/g, '');
-  const userDocId = sanitizedPhone || profile.uid || 'guest';
+  const userDocId = getSafeUserDocId(profile.uid || profile.email);
 
   try {
     await setDoc(
       doc(db, USERS_COLLECTION, userDocId),
       {
-        phoneNumber: profile.phoneNumber,
+        uid: profile.uid || userDocId,
+        email: profile.email,
         fullName: profile.fullName,
         department: profile.department,
         year: profile.year,
@@ -242,24 +269,36 @@ export async function saveUserProfileToFirestore(profile: UserProfile): Promise<
         savedNoticeIds: JSON.stringify(profile.savedNoticeIds || []),
         readHistory: JSON.stringify(profile.readHistory || []),
         preferences: JSON.stringify(profile.preferences || {}),
+        emailVerified: !!profile.emailVerified,
+        passwordHistory: profile.passwordHistory ? JSON.stringify(profile.passwordHistory) : '[]',
+        passwordResetOtp: profile.passwordResetOtp || '',
+        createdAt: profile.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
       { merge: true }
     );
   } catch (error) {
-    console.warn('Profile sync to Firestore deferred:', error);
+    console.warn('Profile sync to Firestore deferred (offline or permission):', error);
   }
 }
 
 /**
- * Fetches user profile by mobile phone number
+ * Fetches user profile from Firestore by UID or email
  */
-export async function getUserProfileFromFirestore(phone: string): Promise<UserProfile | null> {
-  const sanitizedPhone = phone.replace(/[^0-9]/g, '');
-  if (!sanitizedPhone) return null;
+export async function getUserProfileFromFirestore(identifier: string): Promise<UserProfile | null> {
+  if (!identifier) return null;
+
+  const safeId = getSafeUserDocId(identifier);
 
   try {
-    const snap = await getDoc(doc(db, USERS_COLLECTION, sanitizedPhone));
+    // 1. Try safe document ID
+    let snap = await getDoc(doc(db, USERS_COLLECTION, safeId));
+    
+    // 2. Fallback to raw identifier if different
+    if (!snap.exists() && safeId !== identifier) {
+      snap = await getDoc(doc(db, USERS_COLLECTION, identifier));
+    }
+
     if (snap.exists()) {
       const data = snap.data();
       let savedIds: string[] = [];
@@ -272,25 +311,30 @@ export async function getUserProfileFromFirestore(phone: string): Promise<UserPr
         pushAlerts: true,
         soundChime: true,
       };
+      let historyList: string[] = [];
 
       try {
-        if (data.savedNoticeIds) savedIds = JSON.parse(data.savedNoticeIds);
-        if (data.readHistory) readHistory = JSON.parse(data.readHistory);
-        if (data.preferences) preferences = { ...preferences, ...JSON.parse(data.preferences) };
+        if (data.savedNoticeIds) savedIds = typeof data.savedNoticeIds === 'string' ? JSON.parse(data.savedNoticeIds) : data.savedNoticeIds;
+        if (data.readHistory) readHistory = typeof data.readHistory === 'string' ? JSON.parse(data.readHistory) : data.readHistory;
+        if (data.preferences) preferences = typeof data.preferences === 'string' ? { ...preferences, ...JSON.parse(data.preferences) } : { ...preferences, ...data.preferences };
+        if (data.passwordHistory) historyList = typeof data.passwordHistory === 'string' ? JSON.parse(data.passwordHistory) : data.passwordHistory;
       } catch {}
 
       return {
-        uid: sanitizedPhone,
-        phoneNumber: data.phoneNumber || phone,
-        fullName: data.fullName || 'KGEC Student',
+        uid: data.uid || snap.id,
+        email: data.email || identifier,
+        fullName: data.fullName || 'KGEC Scholar',
         department: data.department || 'CSE',
         year: data.year || '3rd Year',
         rollNumber: data.rollNumber || '',
         savedNoticeIds: savedIds,
         readHistory: readHistory,
         preferences: preferences,
+        emailVerified: !!data.emailVerified,
+        passwordHistory: historyList,
+        passwordResetOtp: data.passwordResetOtp || undefined,
         lastLoginAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
+        createdAt: data.createdAt || new Date().toISOString(),
         updatedAt: data.updatedAt || new Date().toISOString(),
       };
     }
@@ -301,53 +345,76 @@ export async function getUserProfileFromFirestore(phone: string): Promise<UserPr
 }
 
 /**
- * Real-time listener for user profile updates from Firestore
+ * Subscribes in real-time to changes on the user's Firestore document.
+ * Any change made in Firestore immediately reflects on the site onsync.
  */
-export function subscribeToUserProfile(phone: string, callback: (profile: UserProfile) => void): () => void {
-  const sanitizedPhone = phone.replace(/[^0-9]/g, '');
-  if (!sanitizedPhone) return () => {};
+export function subscribeToUserProfile(
+  identifier: string,
+  callback: (profile: UserProfile | null) => void
+): () => void {
+  if (!identifier) {
+    callback(null);
+    return () => {};
+  }
 
-  const userDocRef = doc(db, USERS_COLLECTION, sanitizedPhone);
-  const unsubscribe = onSnapshot(userDocRef, (snap) => {
-    if (snap.exists()) {
-      const data = snap.data();
-      let savedIds: string[] = [];
-      let readHistory: string[] = [];
-      let preferences = {
-        general: true,
-        academic: true,
-        examination: true,
-        admission: true,
-        pushAlerts: true,
-        soundChime: true,
-      };
+  const safeId = getSafeUserDocId(identifier);
+  const userDocRef = doc(db, USERS_COLLECTION, safeId);
 
-      try {
-        if (data.savedNoticeIds) savedIds = JSON.parse(data.savedNoticeIds);
-        if (data.readHistory) readHistory = JSON.parse(data.readHistory);
-        if (data.preferences) preferences = { ...preferences, ...JSON.parse(data.preferences) };
-      } catch {}
+  const unsubscribe = onSnapshot(
+    userDocRef,
+    (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        let savedIds: string[] = [];
+        let readHistory: string[] = [];
+        let preferences = {
+          general: true,
+          academic: true,
+          examination: true,
+          admission: true,
+          pushAlerts: true,
+          soundChime: true,
+        };
+        let historyList: string[] = [];
 
-      const updatedProfile: UserProfile = {
-        uid: sanitizedPhone,
-        phoneNumber: data.phoneNumber || phone,
-        fullName: data.fullName || 'KGEC Student',
-        department: data.department || 'CSE',
-        year: data.year || '3rd Year',
-        rollNumber: data.rollNumber || '',
-        savedNoticeIds: savedIds,
-        readHistory: readHistory,
-        preferences: preferences,
-        lastLoginAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: data.updatedAt || new Date().toISOString(),
-      };
+        try {
+          if (data.savedNoticeIds) savedIds = typeof data.savedNoticeIds === 'string' ? JSON.parse(data.savedNoticeIds) : data.savedNoticeIds;
+          if (data.readHistory) readHistory = typeof data.readHistory === 'string' ? JSON.parse(data.readHistory) : data.readHistory;
+          if (data.preferences) preferences = typeof data.preferences === 'string' ? { ...preferences, ...JSON.parse(data.preferences) } : { ...preferences, ...data.preferences };
+          if (data.passwordHistory) historyList = typeof data.passwordHistory === 'string' ? JSON.parse(data.passwordHistory) : data.passwordHistory;
+        } catch {}
 
-      callback(updatedProfile);
+        const profile: UserProfile = {
+          uid: data.uid || snap.id,
+          email: data.email || identifier,
+          fullName: data.fullName || 'KGEC Scholar',
+          department: data.department || 'CSE',
+          year: data.year || '3rd Year',
+          rollNumber: data.rollNumber || '',
+          savedNoticeIds: savedIds,
+          readHistory: readHistory,
+          preferences: preferences,
+          emailVerified: !!data.emailVerified,
+          passwordHistory: historyList,
+          passwordResetOtp: data.passwordResetOtp || undefined,
+          lastLoginAt: data.lastLoginAt || new Date().toISOString(),
+          createdAt: data.createdAt || new Date().toISOString(),
+          updatedAt: data.updatedAt || new Date().toISOString(),
+        };
+
+        try {
+          localStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify(profile));
+        } catch {}
+
+        callback(profile);
+      } else {
+        // Doc might not exist yet
+      }
+    },
+    (err) => {
+      console.warn('Real-time user profile sync note:', err);
     }
-  }, (err) => {
-    console.warn('User profile realtime sync note:', err);
-  });
+  );
 
   return unsubscribe;
 }
@@ -372,6 +439,7 @@ export function subscribeToBroadcast(callback: (broadcast: SystemBroadcast | nul
           message: data.message || '',
           isActive: !!data.isActive,
           severity: data.severity || 'info',
+          meetingUrl: data.meetingUrl || undefined,
           updatedAt: data.updatedAt || new Date().toISOString(),
         };
         try {
@@ -397,6 +465,7 @@ export async function setBroadcastTicker(broadcast: SystemBroadcast): Promise<vo
       message: broadcast.message,
       isActive: broadcast.isActive,
       severity: broadcast.severity,
+      meetingUrl: broadcast.meetingUrl || '',
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {

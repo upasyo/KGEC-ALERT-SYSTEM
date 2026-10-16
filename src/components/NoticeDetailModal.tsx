@@ -199,6 +199,16 @@ export const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({ notice, on
                 <span>Add Deadline to Calendar (.ics)</span>
               </button>
             )}
+            
+            <a
+              href={notice.meetingUrl || 'https://meet.google.com/new'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>{notice.meetingUrl ? 'Join Meeting' : 'Start Meeting'}</span>
+            </a>
           </div>
 
           <button

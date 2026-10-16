@@ -10,6 +10,7 @@ import {
   Radio,
   BookmarkCheck,
   ChevronRight,
+  Video,
 } from 'lucide-react';
 import { SystemBroadcast } from '../types';
 import { useTheme } from '../context/ThemeContext';
@@ -127,6 +128,16 @@ export const BuildingHero: React.FC<BuildingHeroProps> = ({
               <Maximize2 className="w-3 h-3" />
               <span>View Building</span>
             </button>
+            
+            <a
+              href={broadcast?.meetingUrl || 'https://meet.google.com/new'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium border border-blue-500 transition-all"
+            >
+              <Video className="w-3 h-3" />
+              <span>{broadcast?.meetingUrl ? 'Join Live Class' : 'Start Meeting'}</span>
+            </a>
           </div>
         </div>
       </div>

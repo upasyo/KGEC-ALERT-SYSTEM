@@ -12,6 +12,7 @@ export interface Notice {
   attachmentUrl?: string;
   isUrgent?: boolean;
   sourceUrl?: string;
+  meetingUrl?: string;
   createdAt: string;
   updatedAt?: string;
   isNew?: boolean;
@@ -19,7 +20,7 @@ export interface Notice {
 
 export interface UserProfile {
   uid: string;
-  phoneNumber: string;
+  email: string;
   fullName: string;
   department: string;
   year: string;
@@ -37,6 +38,9 @@ export interface UserProfile {
   lastLoginAt: string;
   createdAt: string;
   updatedAt: string;
+  emailVerified?: boolean;
+  passwordHistory?: string[]; // Hashes of last 3 passwords
+  passwordResetOtp?: string; // Reset OTP stored in Firestore
 }
 
 export interface SystemBroadcast {
@@ -44,6 +48,7 @@ export interface SystemBroadcast {
   message: string;
   isActive: boolean;
   severity: 'info' | 'warning' | 'critical';
+  meetingUrl?: string;
   updatedAt: string;
 }
 

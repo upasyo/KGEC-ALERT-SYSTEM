@@ -9,9 +9,9 @@ const config = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID || defaultFirebaseConfig.appId,
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || defaultFirebaseConfig.apiKey,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || defaultFirebaseConfig.authDomain,
-  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || defaultFirebaseConfig.firestoreDatabaseId,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || defaultFirebaseConfig.storageBucket,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || defaultFirebaseConfig.messagingSenderId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || (defaultFirebaseConfig as any).firestoreDatabaseId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || (defaultFirebaseConfig as any).storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || (defaultFirebaseConfig as any).messagingSenderId,
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || (defaultFirebaseConfig as any).measurementId || 'G-8KGGXCR4HH',
 };
 

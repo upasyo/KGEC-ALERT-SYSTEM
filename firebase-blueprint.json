@@ -69,13 +69,18 @@
     },
     "UserProfile": {
       "title": "UserProfile",
-      "description": "Registered KGEC student or faculty profile tied to mobile number",
+      "description": "Registered KGEC student or faculty profile tied to verified email",
       "type": "object",
       "properties": {
+        "email": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Registered student or faculty institutional/personal email"
+        },
         "phoneNumber": {
           "type": "string",
           "maxLength": 20,
-          "description": "E.164 or 10-digit mobile phone number"
+          "description": "Optional contact number"
         },
         "fullName": {
           "type": "string",
@@ -116,9 +121,19 @@
           "type": "string",
           "maxLength": 50,
           "description": "Profile last update timestamp"
+        },
+        "passwordHistory": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "JSON array of last 3 password hashes to prevent re-use"
+        },
+        "passwordResetOtp": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Password reset OTP or token"
         }
       },
-      "required": ["phoneNumber", "fullName"]
+      "required": ["email", "fullName"]
     },
     "SystemBroadcast": {
       "title": "SystemBroadcast",
