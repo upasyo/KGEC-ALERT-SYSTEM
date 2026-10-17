@@ -132,7 +132,7 @@ interface AuthContextType {
   requestPasswordReset: (email: string) => Promise<{ otp: string; emailSent: boolean }>;
   resetPasswordWithOtp: (email: string, otp: string, newPassword: string) => Promise<void>;
   changePassword: (newPassword: string) => Promise<void>;
-  resendVerificationEmail: () => Promise<void>;
+  resendVerificationEmail: (email?: string, password?: string) => Promise<{ sent: boolean }>;
   logout: () => Promise<void>;
   toggleSaveNotice: (noticeId: string) => Promise<void>;
   markNoticeAsRead: (noticeId: string) => Promise<void>;
@@ -148,7 +148,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const stored = localStorage.getItem('kgec_user_profile');
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Security check: Only load cached profile if email was verified
+        if (parsed && parsed.emailVerified === true) {
+          return parsed;
+        }
       }
     } catch {}
     return null;
@@ -172,6 +176,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     unsubscribeProfileRef.current = subscribeToUserProfile(identifier, (remoteProfile) => {
       if (remoteProfile) {
+        // Enforce verified status in real-time
         setUser((prev) => {
           const mergedSaved = Array.from(
             new Set([...(prev?.savedNoticeIds || []), ...remoteProfile.savedNoticeIds])
@@ -181,6 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           );
           const updated: UserProfile = {
             ...remoteProfile,
+            emailVerified: remoteProfile.emailVerified ?? prev?.emailVerified ?? true,
             savedNoticeIds: mergedSaved,
             readHistory: mergedHistory,
           };
@@ -195,31 +201,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Listen to Firebase Auth state on mount
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (current) => {
-      setFirebaseUser(current);
       if (current && current.email) {
-        // Fetch and subscribe to user profile in Firestore
-        const existing = await getUserProfileFromFirestore(current.uid);
-        const fallbackExisting = !existing ? await getUserProfileFromFirestore(current.email) : null;
-        const profile = existing || fallbackExisting;
-
-        if (profile) {
-          setUser(profile);
-          localStorage.setItem('kgec_user_profile', JSON.stringify(profile));
-          setOfflineSavedIds(profile.savedNoticeIds);
+        try {
+          // Force reload to get fresh verification status from Firebase
+          await current.reload();
+        } catch (reloadErr) {
+          console.warn('Firebase user reload check:', reloadErr);
         }
+
+        // Strict verification gate: Unverified users cannot maintain a session
+        if (!current.emailVerified) {
+          console.warn('Rejecting unverified Firebase user session:', current.email);
+          await signOut(auth).catch(() => {});
+          setUser(null);
+          setFirebaseUser(null);
+          localStorage.removeItem('kgec_user_profile');
+          return;
+        }
+
+        setFirebaseUser(current);
+
+        // Fetch and subscribe to user profile in Firestore
+        let existing = await getUserProfileFromFirestore(current.uid);
+        if (!existing) {
+          existing = await getUserProfileFromFirestore(current.email);
+        }
+
+        if (!existing) {
+          console.warn('Rejecting user session because profile does not exist in Firestore:', current.email);
+          await signOut(auth).catch(() => {});
+          setUser(null);
+          setFirebaseUser(null);
+          localStorage.removeItem('kgec_user_profile');
+          return;
+        }
+
+        const profile: UserProfile = {
+          ...existing,
+          emailVerified: true,
+        };
+
+        setUser(profile);
+        localStorage.setItem('kgec_user_profile', JSON.stringify(profile));
+        setOfflineSavedIds(profile.savedNoticeIds);
+
         // Wire real-time snapshot
         setupRealtimeSync(current.uid || current.email);
       } else {
-        // If not in Firebase Auth and no cached user, clear
-        if (!localStorage.getItem('kgec_user_profile')) {
-          setUser(null);
-        }
+        // If not in Firebase Auth, clear all session state
+        setUser(null);
+        setFirebaseUser(null);
+        localStorage.removeItem('kgec_user_profile');
       }
     });
 
-    // Also connect realtime listener if local user exists
+    // Connect realtime listener if verified user exists
     if (user?.uid || user?.email) {
-      setupRealtimeSync(user.uid || user.email);
+      if (user.emailVerified) {
+        setupRealtimeSync(user.uid || user.email);
+      }
     }
 
     return () => {
@@ -231,8 +271,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   /**
-   * Logs in an existing user with Firebase Email and Password,
-   * then instantly retrieves and syncs their profile from Firestore.
+   * Logs in an existing user with Firebase Email and Password.
+   * STRICT REQUIREMENT: If the user's email has not been verified through Firebase,
+   * login is denied, a verification email is dispatched, user is signed out, and the site remains locked.
    */
   const loginWithEmail = async (email: string, password: string) => {
     const trimmedEmail = email.trim().toLowerCase();
@@ -240,12 +281,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 1. Sign in with Firebase Auth
     const userCredential = await signInWithEmailAndPassword(auth, trimmedEmail, password);
     const fbUser = userCredential.user;
+
+    // 2. Fetch latest server verification status
+    try {
+      await fbUser.reload();
+    } catch (reloadErr) {
+      console.warn('fbUser.reload error:', reloadErr);
+    }
+
+    // 3. ENFORCE EMAIL VERIFICATION REQUIREMENT:
+    if (!fbUser.emailVerified) {
+      // Automatically send a fresh verification email so user can easily verify
+      try {
+        await sendEmailVerification(fbUser);
+      } catch (sendErr) {
+        console.warn('sendEmailVerification during login error:', sendErr);
+      }
+
+      // Immediately terminate the session so the site NEVER opens
+      await signOut(auth).catch(() => {});
+      setUser(null);
+      setFirebaseUser(null);
+      localStorage.removeItem('kgec_user_profile');
+
+      const unverifiedError: any = new Error(
+        `Email verification required! We have sent a verification link to ${trimmedEmail}. In accordance with KGEC campus security, you must click the link in your email to verify your account before you can log in to the portal.`
+      );
+      unverifiedError.code = 'auth/unverified-email';
+      unverifiedError.email = trimmedEmail;
+      throw unverifiedError;
+    }
+
     setFirebaseUser(fbUser);
 
-    // 2. Retrieve user details from Firestore
+    // 4. Retrieve user details from Firestore (STRICT: Profile must exist)
     let existing = await getUserProfileFromFirestore(fbUser.uid);
     if (!existing) {
       existing = await getUserProfileFromFirestore(trimmedEmail);
+    }
+
+    if (!existing) {
+      await signOut(auth).catch(() => {});
+      setUser(null);
+      setFirebaseUser(null);
+      localStorage.removeItem('kgec_user_profile');
+
+      const noProfileErr: any = new Error(
+        'Account profile not found in Firestore. Please register your account first.'
+      );
+      noProfileErr.code = 'auth/user-not-found';
+      throw noProfileErr;
     }
 
     const offlineSaved = getOfflineSavedIds();
@@ -253,13 +338,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const profile: UserProfile = {
       uid: fbUser.uid,
       email: trimmedEmail,
-      fullName: existing?.fullName || fbUser.displayName || 'KGEC Scholar',
-      department: existing?.department || 'Computer Science & Engineering',
-      year: existing?.year || '3rd Year',
-      rollNumber: existing?.rollNumber || '',
-      savedNoticeIds: Array.from(new Set([...offlineSaved, ...(existing?.savedNoticeIds || [])])),
-      readHistory: existing?.readHistory || [],
-      preferences: existing?.preferences || {
+      fullName: existing.fullName,
+      department: existing.department,
+      year: existing.year,
+      rollNumber: existing.rollNumber || '',
+      savedNoticeIds: Array.from(new Set([...offlineSaved, ...(existing.savedNoticeIds || [])])),
+      readHistory: existing.readHistory || [],
+      preferences: existing.preferences || {
         general: true,
         academic: true,
         examination: true,
@@ -267,14 +352,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pushAlerts: true,
         soundChime: true,
       },
-      emailVerified: fbUser.emailVerified,
-      passwordHistory: existing?.passwordHistory || [],
+      emailVerified: true,
+      passwordHistory: existing.passwordHistory || [],
       lastLoginAt: new Date().toISOString(),
-      createdAt: existing?.createdAt || new Date().toISOString(),
+      createdAt: existing.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // 3. Persist and establish real-time Firestore synchronization
+    // 5. Persist and establish real-time Firestore synchronization
     setUser(profile);
     localStorage.setItem('kgec_user_profile', JSON.stringify(profile));
     setOfflineSavedIds(profile.savedNoticeIds);
@@ -284,9 +369,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Registers a new student or faculty user with email and password,
-   * dispatches a Firebase verification email, stores initial password hash in passwordHistory,
-   * and prevents duplicate registrations.
+   * Registers a new student or faculty user with email, password, and profile details.
+   * Dispatches a Firebase verification email, stores profile in Firestore,
+   * and immediately signs the user out so the site will NOT open until verified.
    */
   const registerWithEmail = async (
     email: string,
@@ -319,7 +404,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // 4. Create user in Firebase Authentication
     const userCredential = await createUserWithEmailAndPassword(auth, trimmedEmail, password);
     const fbUser = userCredential.user;
-    setFirebaseUser(fbUser);
 
     // 5. Trigger verification email via Firebase Auth
     let emailSent = false;
@@ -331,17 +415,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('sendEmailVerification notice:', verifErr);
     }
 
-    // 6. Compute initial password hash for password history (1 of 3)
+    // 6. Compute initial password hash for password history
     const initialPwdHash = await hashPasswordForHistory(password);
 
-    // 7. Store all details in Firestore under user document
+    // 7. Store user details in Firestore upon registration
     const offlineSaved = getOfflineSavedIds();
     const newProfile: UserProfile = {
       uid: fbUser.uid,
       email: trimmedEmail,
-      fullName: fullName.trim() || 'KGEC Scholar',
-      department: department || 'Computer Science & Engineering',
-      year: year || '3rd Year',
+      fullName: fullName.trim(),
+      department: department,
+      year: year,
       rollNumber: rollNumber.trim() || '',
       savedNoticeIds: offlineSaved,
       readHistory: [],
@@ -353,23 +437,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pushAlerts: true,
         soundChime: true,
       },
-      emailVerified: fbUser.emailVerified,
+      emailVerified: false,
       passwordHistory: [initialPwdHash],
       lastLoginAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    setUser(newProfile);
-    localStorage.setItem('kgec_user_profile', JSON.stringify(newProfile));
-    setOfflineSavedIds(newProfile.savedNoticeIds);
-
-    // Persist to Firestore
     await saveUserProfileToFirestore(newProfile);
 
-    // Establish real-time Firestore listener
-    setupRealtimeSync(fbUser.uid);
-    setIsAuthModalOpen(false);
+    // Immediately sign out from Firebase and clear session until email is verified
+    await signOut(auth).catch(() => {});
+    setUser(null);
+    setFirebaseUser(null);
+    localStorage.removeItem('kgec_user_profile');
 
     return { verificationSent: emailSent };
   };
@@ -513,13 +594,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   /**
-   * Resends verification email to the logged in user
+   * Resends verification email to the user (either currently signed-in or via provided credentials)
    */
-  const resendVerificationEmail = async () => {
-    if (auth.currentUser) {
-      await sendEmailVerification(auth.currentUser);
-      setVerificationSent(true);
+  const resendVerificationEmail = async (
+    targetEmail?: string,
+    pwd?: string
+  ): Promise<{ sent: boolean }> => {
+    let userToVerify: FirebaseUser | null = auth.currentUser;
+    let shouldSignOutAfter = false;
+
+    if (!userToVerify && targetEmail && pwd) {
+      try {
+        const userCred = await signInWithEmailAndPassword(auth, targetEmail.trim().toLowerCase(), pwd);
+        userToVerify = userCred.user;
+        shouldSignOutAfter = true;
+      } catch (err) {
+        console.warn('Sign in for resend verification failed:', err);
+        throw new Error('Please ensure your email and password are correct to resend verification.');
+      }
     }
+
+    if (!userToVerify) {
+      throw new Error('Please enter your email and password to dispatch a new verification link.');
+    }
+
+    await sendEmailVerification(userToVerify);
+    setVerificationSent(true);
+
+    if (shouldSignOutAfter) {
+      await signOut(auth).catch(() => {});
+    }
+
+    return { sent: true };
   };
 
   /**
@@ -610,7 +716,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         firebaseUser,
-        isAuthenticated: !!user,
+        isAuthenticated: Boolean(user && user.emailVerified === true),
         isAuthModalOpen,
         verificationSent,
         openAuthModal: () => setIsAuthModalOpen(true),

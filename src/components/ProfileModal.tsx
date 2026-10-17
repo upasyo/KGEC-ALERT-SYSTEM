@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Send,
   AlertCircle,
+  Video,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAuth } from '../context/AuthContext';
@@ -219,6 +220,28 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                 includeMargin={false}
               />
             </div>
+          </div>
+
+          {/* Google Meet Academic Discussion Space */}
+          <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900 flex items-center justify-between gap-4">
+            <div>
+              <h4 className="text-xs font-bold text-blue-900 dark:text-blue-100 flex items-center gap-1.5 uppercase tracking-wider mb-1">
+                <Video className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                Google Meet Video Room
+              </h4>
+              <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed max-w-[280px]">
+                Initiate a live consultation or study room directly on Google Meet for student & faculty discussions.
+              </p>
+            </div>
+            <a
+              href="https://meet.google.com/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Start Meeting</span>
+            </a>
           </div>
 
           {/* Form */}

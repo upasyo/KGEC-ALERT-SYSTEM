@@ -19,6 +19,7 @@ import {
   User,
   ArrowLeft,
   HelpCircle,
+  Loader2,
 } from 'lucide-react';
 import {
   useAuth,
@@ -53,11 +54,14 @@ export const LoginGateway: React.FC = () => {
     registerWithEmail,
     requestPasswordReset,
     resetPasswordWithOtp,
+    resendVerificationEmail,
   } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
 
-  // Mode: 'login' | 'register' | 'forgot_request' | 'forgot_verify'
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot_request' | 'forgot_verify'>('login');
+  // Mode: 'login' | 'register' | 'forgot_request' | 'forgot_verify' | 'awaiting_verification'
+  const [mode, setMode] = useState<
+    'login' | 'register' | 'forgot_request' | 'forgot_verify' | 'awaiting_verification'
+  >('login');
 
   // Input states
   const [email, setEmail] = useState('');
@@ -81,6 +85,9 @@ export const LoginGateway: React.FC = () => {
   const [infoMsg, setInfoMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [isUnverifiedEmailError, setIsUnverifiedEmailError] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccessMsg, setResendSuccessMsg] = useState<string | null>(null);
 
   // Live validation
   const emailError = email.length > 0 ? validateEmailFormat(email) : null;
@@ -90,6 +97,8 @@ export const LoginGateway: React.FC = () => {
   const mapFirebaseError = (error: any): string => {
     const code = error?.code || '';
     switch (code) {
+      case 'auth/unverified-email':
+        return error?.message || 'Email verification required. Please verify your email before logging in.';
       case 'auth/email-already-in-use':
         return 'An account with this email address already exists. Please log in or use Forgot Password.';
       case 'auth/invalid-credential':
@@ -109,10 +118,26 @@ export const LoginGateway: React.FC = () => {
     }
   };
 
+  const handleResendVerification = async () => {
+    setIsResending(true);
+    setResendSuccessMsg(null);
+    setErrorMsg('');
+    try {
+      await resendVerificationEmail(email, password);
+      setResendSuccessMsg(`Fresh verification link has been sent to ${email}. Check your inbox!`);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to resend verification email. Please ensure your email and password are provided.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setInfoMsg('');
+    setIsUnverifiedEmailError(false);
+    setResendSuccessMsg(null);
 
     // Pre-flight client-side validation
     const mailCheck = validateEmailFormat(email);
@@ -141,10 +166,10 @@ export const LoginGateway: React.FC = () => {
 
     try {
       if (mode === 'login') {
-        setSyncStatus('Verifying credentials & retrieving profile from Firestore...');
+        setSyncStatus('Verifying credentials & checking email verification status...');
         await loginWithEmail(email, password);
       } else if (mode === 'register') {
-        setSyncStatus('Registering account, triggering verification email & syncing to Firestore...');
+        setSyncStatus('Registering account & dispatching Firebase email verification...');
         const result = await registerWithEmail(
           email,
           password,
@@ -154,13 +179,20 @@ export const LoginGateway: React.FC = () => {
           rollNumber
         );
 
-        if (result.verificationSent) {
-          setInfoMsg(`A verification confirmation email was dispatched via Firebase to ${email}. Check your inbox!`);
-        }
+        // Account is registered and verification email sent.
+        // The site will NOT open until verified.
+        setMode('awaiting_verification');
+        setInfoMsg(`A verification link was dispatched via Firebase to ${email}. Check your inbox!`);
       }
     } catch (err: any) {
       console.warn('Auth Gateway error:', err);
-      setErrorMsg(mapFirebaseError(err));
+      if (err?.code === 'auth/unverified-email') {
+        setIsUnverifiedEmailError(true);
+        setErrorMsg(err.message);
+      } else {
+        setIsUnverifiedEmailError(false);
+        setErrorMsg(mapFirebaseError(err));
+      }
     } finally {
       setIsLoading(false);
       setSyncStatus(null);
@@ -306,25 +338,40 @@ export const LoginGateway: React.FC = () => {
 
       {/* Main Authentication Card */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-6 my-4">
-        <div className="max-w-md w-full bg-white/95 dark:bg-stone-900/95 backdrop-blur-xl rounded-3xl border border-stone-200 dark:border-stone-800 shadow-2xl overflow-hidden p-6 sm:p-8">
+        <div className="max-w-md w-full bg-white/95 dark:bg-stone-900/95 backdrop-blur-xl rounded-3xl border border-stone-200 dark:border-stone-800 shadow-2xl overflow-hidden p-6 sm:p-8 relative">
           
+          {/* Top Visual Indeterminate Progress Bar during Auth & Registration */}
+          {isLoading && (
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-100 dark:bg-emerald-950/80 overflow-hidden z-30">
+              <div className="h-full bg-emerald-600 dark:bg-emerald-400 rounded-full animate-indeterminate" />
+            </div>
+          )}
+
           {/* Header Badge */}
           <div className="text-center mb-6">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center mx-auto mb-3 shadow-xs">
-              <Lock className="w-7 h-7" />
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-xs border transition-colors ${
+              mode === 'awaiting_verification'
+                ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800'
+                : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800'
+            }`}>
+              {mode === 'awaiting_verification' ? <Mail className="w-7 h-7" /> : <Lock className="w-7 h-7" />}
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white tracking-tight mb-1">
               {mode === 'login'
                 ? 'Portal Account Login'
                 : mode === 'register'
                 ? 'Student & Faculty Registration'
+                : mode === 'awaiting_verification'
+                ? 'Verify Email to Unlock Portal'
                 : 'Reset Forgotten Password'}
             </h2>
             <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed max-w-xs mx-auto">
               {mode === 'login'
-                ? 'Sign in with your email and password to access official notices and live circulars.'
+                ? 'Sign in with your verified email and password to access official circulars.'
                 : mode === 'register'
-                ? 'Register with your college email. Accounts are protected and synced in Firestore.'
+                ? 'Register with your college email. Email verification through Firebase is required.'
+                : mode === 'awaiting_verification'
+                ? 'A verification link has been sent to your email. You must verify your email before logging in.'
                 : 'Enter your registered email to receive a password reset OTP and email.'}
             </p>
           </div>
@@ -338,6 +385,7 @@ export const LoginGateway: React.FC = () => {
                   setMode('login');
                   setErrorMsg('');
                   setInfoMsg('');
+                  setIsUnverifiedEmailError(false);
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                   mode === 'login'
@@ -353,6 +401,7 @@ export const LoginGateway: React.FC = () => {
                   setMode('register');
                   setErrorMsg('');
                   setInfoMsg('');
+                  setIsUnverifiedEmailError(false);
                 }}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                   mode === 'register'
@@ -365,11 +414,69 @@ export const LoginGateway: React.FC = () => {
             </div>
           )}
 
-          {/* Feedback & Sync Status */}
+          {/* Feedback & Sync Status with Visual Spinner and Progress Feedback */}
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{errorMsg}</span>
+            <div
+              className={`mb-4 p-3.5 rounded-2xl border text-xs flex flex-col gap-2.5 animate-in fade-in ${
+                isUnverifiedEmailError
+                  ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
+                  : 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+              }`}
+            >
+              <div className="flex items-start gap-2.5">
+                <AlertCircle
+                  className={`w-4 h-4 shrink-0 mt-0.5 ${
+                    isUnverifiedEmailError ? 'text-amber-600' : 'text-rose-600'
+                  }`}
+                />
+                <div className="flex-1">
+                  {isUnverifiedEmailError && (
+                    <strong className="block text-amber-950 dark:text-amber-100 font-bold mb-0.5 uppercase tracking-wider text-[11px]">
+                      Access Restricted: Email Unverified
+                    </strong>
+                  )}
+                  <span className="leading-relaxed">{errorMsg}</span>
+                </div>
+              </div>
+
+              {isUnverifiedEmailError && (
+                <div className="pt-2 border-t border-amber-200/80 dark:border-amber-800/80 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isResending}
+                    onClick={handleResendVerification}
+                    className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-[11px] shadow-xs flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {isResending ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Sending Link...</span>
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-3 h-3" />
+                        <span>Resend Verification Link</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleAuthSubmit(e)}
+                    className="px-3 py-1.5 rounded-xl bg-stone-900 dark:bg-white text-white dark:text-stone-900 font-bold text-[11px] shadow-xs flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <span>Check Verification & Log In</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
+              {resendSuccessMsg && (
+                <div className="p-2 rounded-xl bg-emerald-100/80 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 text-[11px] font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{resendSuccessMsg}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -381,9 +488,14 @@ export const LoginGateway: React.FC = () => {
           )}
 
           {syncStatus && (
-            <div className="mb-4 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-300 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-xs flex items-center gap-2 animate-pulse">
-              <RefreshCw className="w-4 h-4 shrink-0 animate-spin text-blue-600" />
-              <span>{syncStatus}</span>
+            <div className="mb-4 p-3.5 rounded-2xl bg-emerald-50/90 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 text-xs shadow-xs animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <Loader2 className="w-4 h-4 shrink-0 animate-spin text-emerald-600 dark:text-emerald-400" />
+                <span className="font-semibold flex-1 leading-snug">{syncStatus}</span>
+              </div>
+              <div className="mt-2.5 h-1.5 w-full bg-emerald-200/60 dark:bg-emerald-900/60 rounded-full overflow-hidden relative">
+                <div className="h-full bg-emerald-600 dark:bg-emerald-400 rounded-full animate-indeterminate" />
+              </div>
             </div>
           )}
 
@@ -563,16 +675,109 @@ export const LoginGateway: React.FC = () => {
                 disabled={isLoading || (mode === 'register' && (!!emailError || password.length < 6))}
                 className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-98 text-white text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span>
-                  {isLoading
-                    ? 'Connecting Firebase...'
-                    : mode === 'login'
-                    ? 'Sign In & Access Portal'
-                    : 'Register & Send Verification'}
-                </span>
-                <ArrowRight className="w-4 h-4" />
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>
+                      {mode === 'login'
+                        ? 'Signing In with Firebase...'
+                        : 'Registering & Syncing to Firestore...'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      {mode === 'login'
+                        ? 'Sign In & Access Portal'
+                        : 'Register & Send Verification'}
+                    </span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
+          )}
+
+          {/* MODE: AWAITING EMAIL VERIFICATION */}
+          {mode === 'awaiting_verification' && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-200 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                    Verification Email Dispatched
+                  </h3>
+                </div>
+                <p className="text-xs leading-relaxed text-stone-700 dark:text-stone-300">
+                  Firebase has dispatched a verification email to:
+                </p>
+                <div className="px-3 py-2 rounded-xl bg-white dark:bg-stone-900 border border-amber-200 dark:border-amber-800 font-mono text-xs font-bold text-stone-900 dark:text-stone-100 flex items-center justify-between">
+                  <span className="truncate">{email}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 font-semibold shrink-0">
+                    Pending
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-100/60 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/80 text-[11px] text-amber-900 dark:text-amber-200 space-y-1">
+                  <strong className="block font-bold">Campus Security Gate:</strong>
+                  <p className="leading-relaxed">
+                    Without verifying your email through Firebase, you cannot log in and the site will not open for you. Click the verification link in your email to activate access.
+                  </p>
+                </div>
+              </div>
+
+              {resendSuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                  <span>{resendSuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login');
+                    setErrorMsg('');
+                    setInfoMsg('Enter your password to sign in once you have verified your email.');
+                  }}
+                  className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 active:scale-98 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
+                >
+                  <span>I Have Verified — Go to Sign In</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isResending}
+                  onClick={handleResendVerification}
+                  className="w-full py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isResending ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending Link...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Resend Verification Link</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('register');
+                    setErrorMsg('');
+                    setInfoMsg('');
+                  }}
+                  className="w-full py-2 text-center text-xs text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 cursor-pointer"
+                >
+                  Need to change registration details?
+                </button>
+              </div>
+            </div>
           )}
 
           {/* MODE 3: FORGOT PASSWORD - STEP 1 REQUEST OTP */}
@@ -613,8 +818,17 @@ export const LoginGateway: React.FC = () => {
                   disabled={isLoading || !email}
                   className="w-2/3 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <span>{isLoading ? 'Dispatching...' : 'Send Reset OTP'}</span>
-                  <Send className="w-3.5 h-3.5" />
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                      <span>Dispatching OTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send Reset OTP</span>
+                      <Send className="w-3.5 h-3.5" />
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -729,8 +943,17 @@ export const LoginGateway: React.FC = () => {
                   disabled={isLoading || !resetOtp || newPassword.length < 6}
                   className="w-2/3 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-extrabold uppercase tracking-wider shadow-md flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <span>{isLoading ? 'Updating...' : 'Change Password'}</span>
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                      <span>Validating & Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Change Password</span>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </>
+                  )}
                 </button>
               </div>
             </form>

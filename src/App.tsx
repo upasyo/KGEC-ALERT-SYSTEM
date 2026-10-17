@@ -88,38 +88,6 @@ function AlertSystemMain() {
     };
   }, []);
 
-  // Enforce zero access to the website without logging in (after all hooks are called)
-  if (!isAuthenticated || !user) {
-    return <LoginGateway />;
-  }
-
-  // Automated trigger fetch from kgec.edu.in
-  const handleSyncNotices = async (): Promise<{ added: number; duplicates: number }> => {
-    setIsSyncing(true);
-    try {
-      const result = await fetchLiveKgecNotices(notices);
-      let addedCount = 0;
-
-      for (const item of result.newNotices) {
-        if (!isDuplicateNotice(item, notices)) {
-          await addNoticeToFirestore(item);
-          addedCount++;
-        }
-      }
-
-      if (addedCount > 0) {
-        pushNotificationService.sendPushNotification(
-          `KGEC: ${addedCount} New Circulars Synchronized`,
-          { body: 'Official notices from kgec.edu.in have been updated.' }
-        );
-      }
-
-      return { added: addedCount, duplicates: result.duplicateCount };
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   // Category counts
   const counts = useMemo(() => {
     return {
@@ -195,6 +163,38 @@ function AlertSystemMain() {
     if (!user) return notices.slice(0, 3).length;
     return notices.filter((n) => !user.readHistory?.includes(n.id)).length;
   }, [notices, user]);
+
+  // Enforce zero access to the website without logging in with a verified email (after all hooks are called)
+  if (!isAuthenticated || !user || !user.emailVerified) {
+    return <LoginGateway />;
+  }
+
+  // Automated trigger fetch from kgec.edu.in
+  const handleSyncNotices = async (): Promise<{ added: number; duplicates: number }> => {
+    setIsSyncing(true);
+    try {
+      const result = await fetchLiveKgecNotices(notices);
+      let addedCount = 0;
+
+      for (const item of result.newNotices) {
+        if (!isDuplicateNotice(item, notices)) {
+          await addNoticeToFirestore(item);
+          addedCount++;
+        }
+      }
+
+      if (addedCount > 0) {
+        pushNotificationService.sendPushNotification(
+          `KGEC: ${addedCount} New Circulars Synchronized`,
+          { body: 'Official notices from kgec.edu.in have been updated.' }
+        );
+      }
+
+      return { added: addedCount, duplicates: result.duplicateCount };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 transition-colors">
