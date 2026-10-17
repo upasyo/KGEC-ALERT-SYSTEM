@@ -90,6 +90,63 @@ export const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({ notice, on
             </button>
 
             <button
+              onClick={() => {
+                const win = window.open('', '_blank');
+                if (win) {
+                  win.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                      <head>
+                        <title>KGEC Circular - ${notice.refNumber}</title>
+                        <style>
+                          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1c1917; max-width: 800px; margin: 0 auto; }
+                          .header { text-align: center; border-bottom: 2px solid #059669; padding-bottom: 20px; margin-bottom: 24px; }
+                          .seal { font-size: 24px; font-weight: bold; color: #059669; margin-bottom: 8px; }
+                          .meta { display: flex; justify-content: space-between; background: #f5f5f4; padding: 12px 16px; border-radius: 8px; font-family: monospace; font-size: 13px; margin-bottom: 20px; }
+                          .title { font-size: 20px; font-weight: bold; margin-bottom: 16px; line-height: 1.4; }
+                          .content { font-size: 15px; line-height: 1.6; white-space: pre-line; background: #fafaf9; padding: 20px; border-radius: 8px; border: 1px solid #e7e5e4; margin-bottom: 30px; }
+                          .footer { text-align: right; font-size: 13px; color: #57534e; }
+                          @media print { body { padding: 20px; } }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="header">
+                          <div class="seal">KGEC</div>
+                          <h3 style="margin: 0; font-size: 12px; text-transform: uppercase; color: #78716c;">Government of West Bengal</h3>
+                          <h2 style="margin: 4px 0; font-size: 18px;">KALYANI GOVERNMENT ENGINEERING COLLEGE</h2>
+                          <p style="margin: 0; font-size: 11px; color: #78716c;">Meghnad Saha Bhawan, Kalyani, Nadia, West Bengal - 741235</p>
+                        </div>
+                        <div class="meta">
+                          <div>MEMO NO: <strong>${notice.refNumber}</strong></div>
+                          <div>DATE: <strong>${notice.publishDate}</strong></div>
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                          <span style="background: #ecfdf5; color: #047857; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase;">${notice.category}</span>
+                          <span style="margin-left: 8px; font-size: 12px; color: #57534e;">Department: ${notice.department}</span>
+                        </div>
+                        <div class="title">${notice.title}</div>
+                        <div class="content">${notice.content}</div>
+                        <div class="footer">
+                          <p style="margin: 0; font-weight: bold;">By Order of the Principal</p>
+                          <p style="margin: 2px 0;">Kalyani Government Engineering College</p>
+                        </div>
+                        <script>
+                          window.onload = function() { window.print(); };
+                        </script>
+                      </body>
+                    </html>
+                  `);
+                  win.document.close();
+                }
+              }}
+              title="Export to PDF / Print"
+              className="p-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors flex items-center gap-1.5"
+            >
+              <Download className="w-4 h-4 text-emerald-600" />
+              <span className="text-xs font-semibold hidden sm:inline">Export PDF</span>
+            </button>
+
+            <button
               onClick={handlePrint}
               title="Print Circular"
               className="p-2 rounded-xl text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors"
