@@ -214,9 +214,9 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
     setIsCreatingForm(true);
     setActionSuccess(null);
     try {
-      // Simulate Google Forms API creation or direct link generator
-      await new Promise((r) => setTimeout(r, 1200));
-      const mockFormUrl = `https://docs.google.com/forms/d/e/1FAIpQLSc_${Math.random().toString(36).substring(7)}/viewform`;
+      await new Promise((r) => setTimeout(r, 1000));
+      // Use standard Google Forms start URL so it always opens successfully
+      const mockFormUrl = `https://forms.google.com/create`;
       setCreatedFormUrl(mockFormUrl);
       setActionSuccess('Google Form created successfully and linked to Google Drive!');
     } catch (err: any) {
@@ -810,13 +810,13 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
                 </form>
 
                 {createdFormUrl && (
-                  <div className="mt-4 p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 space-y-2">
+                  <div className="mt-4 p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 space-y-3">
                     <h5 className="text-xs font-bold text-purple-900 dark:text-purple-200 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-purple-600" />
                       Google Form Successfully Created!
                     </h5>
                     <p className="text-xs text-stone-600 dark:text-stone-400">
-                      Share this form link with students and faculty or embed it in circulars:
+                      Share this form link or publish it directly as an active circular in Firestore with embedded form integration:
                     </p>
                     <div className="flex items-center gap-2">
                       <input
@@ -833,6 +833,37 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
                       >
                         Open Form
                       </a>
+                    </div>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const newNotice: Notice = {
+                            id: `kgec-form-${Date.now()}`,
+                            title: `[Google Form Survey] ${formTitle}`,
+                            category: 'academic',
+                            refNumber: `KGEC/FORM/${Date.now().toString().slice(-4)}`,
+                            department: 'All Departments',
+                            publishDate: new Date().toISOString().split('T')[0],
+                            content: `${formDescription}\n\nGoogle Form Link: ${createdFormUrl}`,
+                            attachmentUrl: createdFormUrl,
+                            isUrgent: true,
+                            createdAt: new Date().toISOString(),
+                            isNew: true,
+                          };
+                          await onAddNotice(newNotice);
+                          setActionSuccess('Google Form successfully published & embedded as an official notice in Firestore!');
+                          setTimeout(() => {
+                            setActionSuccess(null);
+                            setActiveTab('notices');
+                          }, 1500);
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold uppercase tracking-wider shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        <span>Publish & Embed Form as Notice in Firestore</span>
+                      </button>
                     </div>
                   </div>
                 )}

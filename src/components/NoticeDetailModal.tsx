@@ -239,10 +239,10 @@ export const NoticeDetailModal: React.FC<NoticeDetailModalProps> = ({ notice, on
                 href={notice.attachmentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 text-xs font-semibold hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition-colors shadow-sm"
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>Open Official PDF</span>
+                <span>{notice.attachmentUrl.includes('forms.gle') || notice.attachmentUrl.includes('docs.google.com/forms') ? 'Open Google Form' : 'Open Official PDF'}</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             )}
